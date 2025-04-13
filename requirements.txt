@@ -5,3 +5,4 @@ beautifulsoup4
 lxml
 requests
 nest_asyncio
+python-dotenv==1.0.0

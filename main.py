@@ -4,6 +4,8 @@ import random
 import httpx
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+from dotenv import load_dotenv
+import os
 
 # Логирование
 logging.basicConfig(
