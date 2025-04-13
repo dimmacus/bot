@@ -1,11 +1,13 @@
+from dotenv import load_dotenv
+import os
+# Загружаем переменные из .env файла
+load_dotenv()
 import logging
 import asyncio
 import random
 import httpx
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
-from dotenv import load_dotenv
-import os
 
 # Логирование
 logging.basicConfig(
