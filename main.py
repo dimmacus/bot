@@ -10,7 +10,7 @@ from telegram.ext import (
     ContextTypes,
 )
 
-# Загрузка токена из файла token.env
+# Загрузка токена из .env
 load_dotenv(dotenv_path="token.env")
 token = os.getenv("BOT_TOKEN")
 
@@ -33,24 +33,43 @@ dice2 = [
     "Без помощи рук",
 ]
 
-# Приветствие
+# Стартовая кнопка "Начнём?"
+async def show_start_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [InlineKeyboardButton("Начнём?", callback_data="start_game")],
+    ]
+    if update.message:
+        await update.message.reply_text(
+            "Готовы начать игру?", reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    else:
+        await update.callback_query.message.reply_text(
+            "Готовы начать игру?", reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+# Приветствие и правила
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message:
+        message = update.message
+    else:
+        message = update.callback_query.message
+
     keyboard = [
         [InlineKeyboardButton("Принято", callback_data="rules_accepted")],
     ]
-    await update.message.reply_text(
+    await message.reply_text(
         "Привет! Это 'Весёлый Дозатор'.\n"
         "Здесь кидаем два кубика и выполняем весёлые задания с выпивкой.",
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
-# Правила
+# Показ правил
 async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
     keyboard = [
-        [InlineKeyboardButton("Начать играть", callback_data="start_game")],
+        [InlineKeyboardButton("Начать играть", callback_data="start_round")],
     ]
     rules_text = (
         "Правила игры:\n"
@@ -61,15 +80,14 @@ async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await query.edit_message_text(rules_text, reply_markup=InlineKeyboardMarkup(keyboard))
 
-# Начало игры
+# Первый бросок
 async def begin_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     await query.edit_message_text("Бросаем кубики!")
-
     await roll_dice(update, context)
 
-# Кидание кубиков
+# Бросаем два кубика
 async def roll_dice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     dice1_result = random.choice(dice1)
     dice2_result = random.choice(dice2)
@@ -79,41 +97,46 @@ async def roll_dice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("Закончить игру", callback_data="end_game")],
     ]
 
-    # Показываем первый кубик
-    await update.callback_query.message.reply_text(f"Кубик 1: *{dice1_result}*", parse_mode='Markdown')
+    await update.callback_query.message.reply_text(
+        f"Кубик 1: *{dice1_result}*", parse_mode='Markdown'
+    )
 
-    # Пауза 5 секунд, затем второй кубик
-    await context.application.create_task(delayed_second_dice(update, dice2_result, keyboard))
+    await context.application.create_task(
+        delayed_second_dice(update, dice2_result, keyboard)
+    )
 
-# Задержка перед вторым кубиком
+# Второй кубик с задержкой
 async def delayed_second_dice(update: Update, result: str, keyboard):
     await asyncio.sleep(5)
     await update.callback_query.message.reply_text(
-        f"Кубик 2: *{result}*", parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard)
+        f"Кубик 2: *{result}*",
+        parse_mode='Markdown',
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 # Следующий бросок
 async def next_roll(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await roll_dice(update, context)
 
-# Завершить игру
+# Завершение игры
 async def end_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    await start(update, context)
+    await show_start_button(update, context)
 
 # Основной запуск
 def main():
     app = ApplicationBuilder().token(token).build()
-
-    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("start", show_start_button))
+    app.add_handler(CallbackQueryHandler(start, pattern="start_game"))
     app.add_handler(CallbackQueryHandler(rules, pattern="rules_accepted"))
-    app.add_handler(CallbackQueryHandler(begin_game, pattern="start_game"))
+    app.add_handler(CallbackQueryHandler(begin_game, pattern="start_round"))
     app.add_handler(CallbackQueryHandler(next_roll, pattern="next_roll"))
     app.add_handler(CallbackQueryHandler(end_game, pattern="end_game"))
 
     print("Бот запущен...")
     app.run_polling()
 
-if name == "main":
+
+if __name__ == "__main__":
     main()
